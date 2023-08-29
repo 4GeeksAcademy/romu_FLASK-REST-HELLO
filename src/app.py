@@ -36,14 +36,57 @@ def handle_invalid_usage(error):
 def sitemap():
     return generate_sitemap(app)
 
-@app.route('/user', methods=['GET'])
-def handle_hello():
+@app.route('/users', methods=['GET', 'POST'])
+def handle_users():
+    if request.method == 'GET':
+        users = db.session.execute(db.select(User).orde_by(User.name)).scalars()
+        results = [item.serialize() for item in users]
+        response_body = {"message": "Devuelve le GET del endpoint /users",
+                         "result": results,
+                         "status": "ok"
+                         }
+        return response_body, 200
+    if request.method == 'POST':
+        request_body = request.get_json()
+        user = User(email = request_body["email"],
+                    password = request_body["password"],
+                    name = request_body["name"],
+                    phone = request_body["phone"])
+        db.session.add(user)
+        db.session.commit()
+        print(request_body)
+        response_body = {"message": "Adding new user",
+                        "status": "ok",
+                        "new_user": request_body}
+        return response_body, 200
 
-    response_body = {
-        "msg": "Hello, this is your GET /user response "
-    }
-
-    return jsonify(response_body), 200
+@app.route('/users/<int:id>', methods=['GET', 'PUT', 'DELETE'])
+def handle_user(id):
+    if request.method == 'GET':
+        user = db.get_or_404(User, id)
+        print(user)
+        response_body = {"status": "ok",
+                         "results": user.serialize()}
+        return response_body, 200
+    if request.method == 'PUT':
+        request_body = request.get_json()
+        user = db.get_or_404(User, id)
+        user.email = request_body["email"]
+        user.password = request_body["password"]
+        user.name = request_body["name"]
+        user.phone = request_body["phone"]
+        db.session.commit()
+        response_body = {"message": "Update new user",
+                        "status": "ok",
+                        "new_user": request_body}
+        return response_body, 200
+    if request.method == 'DELETE':
+        user = db.get_or_404(User, id)
+        db.session.delete(user)
+        db.session.commit()
+        response_body = { "messega": "Deleting user",
+                         "status": "ok",
+                         "user delete": id}
 
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':
